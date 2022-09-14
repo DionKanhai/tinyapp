@@ -3,6 +3,9 @@ const express = require('express');
 const app = express();
 const PORT = 8080;
 
+// set ejs as the view engine
+app.set('view engine', 'ejs');
+
 // Setup url shortner keys
 const urlDatabase = {
   'b2xVn2': 'http:\\lighthouselabs.ca',
