@@ -18,6 +18,12 @@ app.get('/urls', (req, res) => {
   res.render('urls_index', templateVars);
 });
 
+// second route
+app.get('/urls/:id', (req, res) => {
+  const templateVars = { id: req.params.id, longURL: 'http:\\lighthouselabs.ca'};
+  res.render('urls_show', templateVars);
+});
+
 // set up handler on root path '/'
 app.get('/', (req, res) => {
   res.send('Hello!');
