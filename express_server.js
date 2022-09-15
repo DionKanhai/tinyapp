@@ -8,8 +8,8 @@ app.set('view engine', 'ejs');
 
 // Setup url shortner keys
 const urlDatabase = {
-  'b2xVn2': 'http:\\lighthouselabs.ca',
-  '9sm5xK': 'http:\\google.com'
+  'b2xVn2': "http://lighthouselabs.ca",
+  '9sm5xK': "http://google.com"
 };
 
 // route handler for object with shortened urls
@@ -20,7 +20,7 @@ app.get('/urls', (req, res) => {
 
 // second route
 app.get('/urls/:id', (req, res) => {
-  const templateVars = { id: req.params.id, longURL: 'http:\\lighthouselabs.ca'};
+  const templateVars = { id: req.params.id, longURL: "http://lighthouselabs.ca"};
   res.render('urls_show', templateVars);
 });
 
