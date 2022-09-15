@@ -12,6 +12,12 @@ const urlDatabase = {
   '9sm5xK': 'http:\\google.com'
 };
 
+// route handler for object with shortened urls
+app.get('/urls', (req, res) => {
+  const templateVars = { urls: urlDatabase };
+  res.render('urls_index', templateVars);
+});
+
 // set up handler on root path '/'
 app.get('/', (req, res) => {
   res.send('Hello!');
