@@ -6,6 +6,16 @@ const PORT = 8080;
 // set ejs as the view engine
 app.set('view engine', 'ejs');
 
+// function that generates a string of 6 random alphanumeric characters
+const generateRandomString = function(stringLength = 6) {
+  let result = '';
+  const charsInAlphabet = 'ABCDEFGHIJKLMNOPQRSTUVQXYZabcdefghijklmnopqrstuvwxyz';
+  for (let i = 0; i < stringLength; i++) {
+    result += charsInAlphabet.charAt(Math.floor(Math.random() * charsInAlphabet.length));
+  }
+  return result;
+};
+
 // Setup url shortner keys
 const urlDatabase = {
   'b2xVn2': "http://lighthouselabs.ca",
@@ -17,8 +27,15 @@ app.use(express.urlencoded({ extended: true }));
 
 // define the route that will match POST request and handle it
 app.post('/urls', (req, res) => {
-  console.log(req.body);
-  res.send('Ok');
+  const shortIdForLongUrl = generateRandomString()
+  urlDatabase[shortIdForLongUrl] = req.body.longURL
+  res.redirect(`/urls/${shortIdForLongUrl}`);
+});
+
+//use the shortURL to redirect to the longURL
+app.get("/u/:id", (req, res) => {
+  const longURL = urlDatabase[req.params.id];
+  res.redirect(longURL);
 });
 
 // route handler for object with shortened urls
@@ -32,9 +49,10 @@ app.get('/urls/new', (req, res) => {
   res.render('urls_new');
 });
 
-// second route
+// client input 
 app.get('/urls/:id', (req, res) => {
-  const templateVars = { id: req.params.id, longURL: "http://lighthouselabs.ca"};
+  const urlId = req.params.id;
+  const templateVars = { id: urlId, longURL: urlDatabase[urlId]};
   res.render('urls_show', templateVars);
 });
 
@@ -57,13 +75,3 @@ app.get('/hello', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
-
-// // function that generates a string of 6 random alphanumeric characters
-// function generateRandomString(stringLength) {
-//   let result = '';
-//   let charsInAlphabet = 'ABCDEFGHIJKLMNOPQRSTUVQXYZabcdefghijklmnopqrstuvwxyz';
-//   for (let i = 0; i < stringLength; i++) {
-//     result += charsInAlphabet.charAt(Math.floor(Math.random() * charsInAlphabet.length));
-//   }
-//   return result;
-// };
