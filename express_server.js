@@ -32,7 +32,7 @@ app.post('/urls', (req, res) => {
   res.redirect(`/urls/${shortIdForLongUrl}`);
 });
 
-//
+// post route for deleting short urls
 app.post('/urls/:id/delete', (req, res) =>  {
   const shortURL = req.params.id 
   delete urlDatabase[shortURL];
