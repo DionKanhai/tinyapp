@@ -44,6 +44,20 @@
       </div>
       <div class="card-footer text-muted"></div>
     </div>
+    <h5 class="card-title">Edit</h5>
+    <form class="form-inline" action="/urls" method="POST">
+      <div class="form-group mb-2">
+        <label for="longURL">Enter a URL:</label>
+        <input
+          class="form-control"
+          type="text"
+          name="longURL"
+          placeholder="http://"
+          style="width: 300px; margin: 1em"
+        />
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </div>
+    </form>
     <!-- Bootstrap JS -->
     <script
       src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
