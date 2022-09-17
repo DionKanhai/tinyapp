@@ -39,6 +39,11 @@ app.post('/urls/:id/delete', (req, res) =>  {
   res.redirect('/urls');
 });
 
+// post rerouting edit button
+app.post('/urls/:id', (req, res) =>  {
+  res.redirect('/urls');
+});
+
 //use the shortURL to redirect to the longURL
 app.get("/u/:id", (req, res) => {
   const longURL = urlDatabase[req.params.id];
