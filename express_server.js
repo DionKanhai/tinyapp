@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser')
 const app = express();
 const PORT = 8080;
 
+
 // function that generates a string of 6 random alphanumeric characters
 const generateRandomString = function(stringLength = 6) {
   let result = '';
@@ -14,11 +15,29 @@ const generateRandomString = function(stringLength = 6) {
   return result;
 };
 
+
+// DATABASES
+
 // Setup url shortner keys
 const urlDatabase = {
   'b2xVn2': "http://lighthouselabs.ca",
   '9sm5xK': "http://google.com"
 };
+
+//store user login registration information
+const users = {
+  user1: {
+    id: "firstUser",
+    email: "animals123@example.com",
+    password: "animals",
+  },
+  user2: {
+    id: "secondUser",
+    email: "sports@example.com",
+    password: "basketball",
+  },
+};
+
 
 // SETTING MIDDLEWARES
 
@@ -29,9 +48,10 @@ app.use(express.urlencoded({ extended: true }));
 //this is a middleware for cookies
 app.use(cookieParser())
 
+
 // ROUTES/ENDPOINTS
 //URLS CRUD API 
-// define the route that will match POST request and handle it (create)
+// generate a random short url and redirect to it (create)
 app.post('/urls', (req, res) => {
   const shortIdForLongUrl = generateRandomString()
   urlDatabase[shortIdForLongUrl] = req.body.longURL
@@ -56,12 +76,25 @@ app.post('/urls/:id', (req, res) =>  {
   res.redirect('/urls');
 });
 
+// post route for updating registration form from user input (update)
+app.post('/register', (req, res) => {
+  const newUser = {};
+  const idForNewUser = generateRandomString();
+  const emailForNewUser = req.body.email;
+  const passwordNewForUser = req.body.password;
+  users[newUser] = { idForNewUser, emailForNewUser, passwordNewForUser }; 
+  console.log(users);
+  res.cookie('user_id', idForNewUser);
+  res.redirect('/urls');
+});
+
 // post route for deleting short urls (delete)
 app.post('/urls/:id/delete', (req, res) =>  {
   const shortURL = req.params.id 
   delete urlDatabase[shortURL];
   res.redirect('/urls');
 });
+
 
 // INDEX / RENDERING ROUTES (views)
 
@@ -98,10 +131,11 @@ app.get('/urls/:id', (req, res) => {
   res.render('urls_show', templateVars);
 });
 
-// read request for user registration 
+// render the user registration page
 app.get('/register', (req, res) => {
   res.render('urls_registration');
-})
+});
+
 
 // AUTHENTICATION API ROUTES
 
@@ -116,6 +150,7 @@ app.post('/logout', (req, res) => {
   res.clearCookie('username');
   res.redirect('/urls');
 });
+
 
 // LISTENER FOR INCOMING REQUESTS
 app.listen(PORT, () => {
