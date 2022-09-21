@@ -98,6 +98,11 @@ app.get('/urls/:id', (req, res) => {
   res.render('urls_show', templateVars);
 });
 
+// read request for user registration 
+app.get('/register', (req, res) => {
+  res.render('urls_registration');
+})
+
 // AUTHENTICATION API ROUTES
 
 // post route for setting cookie of username in client
