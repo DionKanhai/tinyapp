@@ -78,17 +78,36 @@ app.post('/urls/:id', (req, res) =>  {
 
 // post route for updating registration form from user input (update)
 app.post('/register', (req, res) => {
-  const idForNewUser = generateRandomString();
   const emailForNewUser = req.body.email;
   const passwordNewForUser = req.body.password;
-  users[idForNewUser] = { 
-    id: idForNewUser, 
-    email: emailForNewUser, 
-    password: passwordNewForUser 
-  }; 
+  
+  // if user attempts to register with an existing email/password respond with error
+  for (let user in users) {
+    if (users[user].email === emailForNewUser && users[user].password === passwordNewForUser) 
+    {
+     return res.status(400).send('Sorry, Invalid');
+    }
+    if (emailForNewUser === "" || passwordNewForUser === "") 
+    {
+      return res.status(400).send('Invalid Input');
+    }
+  };
+
+  const idForNewUser = generateRandomString();
+  users[idForNewUser] = { id: idForNewUser, email: emailForNewUser, password: passwordNewForUser  };
   res.cookie('user_id', idForNewUser);
   res.redirect('/urls');
 });
+
+// // function that is passed the user email and returns that user object if email is in users object
+// const getUserByEmail = function(email) {
+//   for (let user in users) {
+//     if (email === users[user].email) {
+//       return users[user];
+//     }
+//   }
+//   return null;
+// };
 
 // post route for deleting short urls (delete)
 app.post('/urls/:id/delete', (req, res) =>  {
@@ -99,6 +118,10 @@ app.post('/urls/:id/delete', (req, res) =>  {
 
 
 // INDEX / RENDERING ROUTES (views)
+
+app.get('/login', (req, res) => {
+  res.render('urls_login');
+});
 
 // set up handler on root path '/'
 app.get('/', (req, res) => {
@@ -158,3 +181,4 @@ app.post('/logout', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
+
