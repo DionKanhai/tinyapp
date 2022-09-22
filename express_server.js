@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser')
 const app = express();
 const PORT = 8080;
 
+//HELPER FUNCTIONS
 
 // function that generates a string of 6 random alphanumeric characters
 const generateRandomString = function(stringLength = 6) {
@@ -13,6 +14,17 @@ const generateRandomString = function(stringLength = 6) {
     result += charsInAlphabet.charAt(Math.floor(Math.random() * charsInAlphabet.length));
   }
   return result;
+};
+
+// function that is passed the user email and returns that user object if email is in users object
+const getUserByEmail = function(email) {
+  for (let user in users) {
+    if (email === users[user]["email"]) 
+    {
+      return users[user]["id"];
+    }
+  }
+  return null;
 };
 
 
@@ -99,15 +111,6 @@ app.post('/register', (req, res) => {
   res.redirect('/urls');
 });
 
-// // function that is passed the user email and returns that user object if email is in users object
-// const getUserByEmail = function(email) {
-//   for (let user in users) {
-//     if (email === users[user].email) {
-//       return users[user];
-//     }
-//   }
-//   return null;
-// };
 
 // post route for deleting short urls (delete)
 app.post('/urls/:id/delete', (req, res) =>  {
@@ -132,7 +135,7 @@ app.get('/', (req, res) => {
 app.get('/urls', (req, res) => {
   const templateVars = { 
     urls: urlDatabase,
-    user: users[req.cookies.user_id]
+    user: users[req.cookies["user_id"]]
    };
   res.render('urls_index', templateVars);
 });
@@ -140,7 +143,7 @@ app.get('/urls', (req, res) => {
 // present the form to the user and username when user logs in
 app.get('/urls/new', (req, res) => {
   const templateVars = {
-    user: users[req.cookies.user_id]
+    user: users[req.cookies["user_id"]]
   }
   res.render('urls_new', templateVars);
 });
@@ -151,7 +154,7 @@ app.get('/urls/:id', (req, res) => {
   const templateVars = { 
     id: urlId,
     longURL: urlDatabase[urlId],
-    user: users[req.cookies.user_id]
+    user: users[req.cookies["user_id"]]
   };
   res.render('urls_show', templateVars);
 });
@@ -166,8 +169,23 @@ app.get('/register', (req, res) => {
 
 // post route for setting cookie of username in client
 app.post('/login', (req, res) => {
-  res.cookie('user_id', req.body.user_id);
-  res.redirect('/urls');
+  const userEmail = req.body.email;
+  const userPassword = req.body.password
+
+  // verify if the user is an existing user by checking entered email and password
+  for (let user in users) {
+    if (userEmail !== users[user].email) 
+    {
+     return res.status(403).send('Please try again');
+    }
+    if (userEmail === users[user].email && userPassword !== users[user].password) 
+    {
+      return res.status(403).send('Invalid Password');
+    }
+    const user_id = getUserByEmail(userEmail);
+    res.cookie('user_id', user_id);
+    return res.redirect('/urls');
+  };
 });
 
 // clear cookies and redirect back to home page
