@@ -104,10 +104,9 @@ app.post('/register', (req, res) => {
       return res.status(400).send('Invalid Input');
     }
   };
-
   const idForNewUser = generateRandomString();
+  res.cookie('user_id', idForNewUser);  
   users[idForNewUser] = { id: idForNewUser, email: emailForNewUser, password: passwordNewForUser  };
-  res.cookie('user_id', idForNewUser);
   res.redirect('/urls');
 });
 
@@ -140,7 +139,7 @@ app.get('/urls', (req, res) => {
   res.render('urls_index', templateVars);
 });
 
-// present the form to the user and username when user logs in
+// present the form to the user and userID when user logs in
 app.get('/urls/new', (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]]
@@ -167,7 +166,7 @@ app.get('/register', (req, res) => {
 
 // AUTHENTICATION API ROUTES
 
-// post route for setting cookie of username in client
+// post route for setting cookie of userID in and verification on server for client
 app.post('/login', (req, res) => {
   const userEmail = req.body.email;
   const userPassword = req.body.password
