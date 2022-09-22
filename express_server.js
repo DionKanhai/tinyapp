@@ -19,9 +19,9 @@ const generateRandomString = function(stringLength = 6) {
 // function that is passed the user email and returns that user object if email is in users object
 const getUserByEmail = function(email) {
   for (let user in users) {
-    if (email === users[user]["email"]) 
+    if (email === users[user].email) 
     {
-      return users[user]["id"];
+      return users[user];
     }
   }
   return null;
@@ -105,8 +105,8 @@ app.post('/register', (req, res) => {
     }
   };
   const idForNewUser = generateRandomString();
-  res.cookie('user_id', idForNewUser);  
   users[idForNewUser] = { id: idForNewUser, email: emailForNewUser, password: passwordNewForUser  };
+  res.cookie('user_id', idForNewUser);  
   res.redirect('/urls');
 });
 
@@ -170,21 +170,22 @@ app.get('/register', (req, res) => {
 app.post('/login', (req, res) => {
   const userEmail = req.body.email;
   const userPassword = req.body.password
-
+  const user = getUserByEmail(userEmail);
+    if (!userEmail || !userPassword) 
+    {
+      return res.status(400).send('Fields cannot be empty')
+    }; 
   // verify if the user is an existing user by checking entered email and password
-  for (let user in users) {
-    if (userEmail !== users[user].email) 
+    if (!user)
     {
-     return res.status(403).send('Please try again');
+     return res.status(403).send('Invalid Credentials');
     }
-    if (userEmail === users[user].email && userPassword !== users[user].password) 
+    if (userEmail === user.email && userPassword !== user.password)
     {
-      return res.status(403).send('Invalid Password');
+      return res.status(403).send('Invalid Entry');
     }
-    const user_id = getUserByEmail(userEmail);
-    res.cookie('user_id', user_id);
-    return res.redirect('/urls');
-  };
+  res.cookie('user_id', user.id);
+  return res.redirect('/urls');
 });
 
 // clear cookies and redirect back to home page
