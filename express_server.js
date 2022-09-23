@@ -61,13 +61,24 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser())
 
 
-// ROUTES/ENDPOINTS
-//URLS CRUD API 
+// ROUTES/ENDPOINTS   //URLS CRUD API
+
 // generate a random short url and redirect to it (create)
 app.post('/urls', (req, res) => {
+  const templateVars = {
+    user: users[req.cookies["user_id"]]
+  };
+
+  if (!req.cookies["user_id"])
+  {
+    res.render('urls_notAllowedIfNotSignedIn', templateVars)
+  }
+  else 
+  {
   const shortIdForLongUrl = generateRandomString()
   urlDatabase[shortIdForLongUrl] = req.body.longURL
   res.redirect(`/urls/${shortIdForLongUrl}`);
+  };
 });
 
 // set up handler for urlDatabase object (read all)
@@ -78,7 +89,19 @@ app.get('/urls.json', (req, res) => {
 //use the shortURL to redirect to the longURL (read one)
 app.get("/u/:id", (req, res) => {
   const longURL = urlDatabase[req.params.id];
-  res.redirect(longURL);
+  const templateVars = {
+    shortUrl: req.params.id, 
+    user: users[req.cookies["user_id"]]
+  };
+
+  if (!longURL)
+  {
+    res.render('urls_shortUrlNotFound', templateVars)
+  } 
+  else 
+  {
+    res.redirect(longURL);
+  }
 });
 
 // post rerouting edit button (update)
@@ -106,7 +129,7 @@ app.post('/register', (req, res) => {
   };
   const idForNewUser = generateRandomString();
   users[idForNewUser] = { id: idForNewUser, email: emailForNewUser, password: passwordNewForUser  };
-  res.cookie('user_id', idForNewUser);  
+  res.cookie('user_id', idForNewUser);
   res.redirect('/urls');
 });
 
@@ -121,7 +144,12 @@ app.post('/urls/:id/delete', (req, res) =>  {
 
 // INDEX / RENDERING ROUTES (views)
 
+// provide log in page and if user logs in redirect to url page
 app.get('/login', (req, res) => {
+  if (req.cookies["user_id"]) 
+  {
+    return res.redirect('/urls');
+  }
   res.render('urls_login');
 });
 
@@ -144,6 +172,10 @@ app.get('/urls/new', (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]]
   }
+  if (!req.cookies["user_id"]) 
+  {
+    return res.redirect('/login');
+  }
   res.render('urls_new', templateVars);
 });
 
@@ -158,8 +190,12 @@ app.get('/urls/:id', (req, res) => {
   res.render('urls_show', templateVars);
 });
 
-// render the user registration page
+// render the user registration page and if user logs in redirect to url page
 app.get('/register', (req, res) => {
+  if (req.cookies["user_id"]) 
+  {
+    return res.redirect('/urls');
+  }
   res.render('urls_registration');
 });
 
@@ -191,7 +227,7 @@ app.post('/login', (req, res) => {
 // clear cookies and redirect back to home page
 app.post('/logout', (req, res) => {
   res.clearCookie('user_id');
-  res.redirect('/urls');
+  res.redirect('/login');
 });
 
 
