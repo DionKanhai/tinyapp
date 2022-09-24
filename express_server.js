@@ -4,10 +4,11 @@ const cookieParser = require('cookie-parser')
 const app = express();
 const PORT = 8080;
 
+
 //HELPER FUNCTIONS
 
 // function that generates a string of 6 random alphanumeric characters
-const generateRandomString = function(stringLength = 6) {
+const generateRandomString = function (stringLength = 6) {
   let result = '';
   const charsInAlphabet = 'ABCDEFGHIJKLMNOPQRSTUVQXYZabcdefghijklmnopqrstuvwxyz';
   for (let i = 0; i < stringLength; i++) {
@@ -17,23 +18,46 @@ const generateRandomString = function(stringLength = 6) {
 };
 
 // function that is passed the user email and returns that user object if email is in users object
-const getUserByEmail = function(email) {
+const getUserByEmail = function (email) {
   for (let user in users) {
-    if (email === users[user].email) 
-    {
+    if (email === users[user].email) {
       return users[user];
     }
   }
   return null;
 };
 
+// function that shows users who are logged in their websites only 
+const urlsForUser = function (id) {
+  let userUrls = [];
+
+  if (id) {
+    for (const shortURL in urlDatabase) {
+      if (urlDatabase[shortURL].userID === id) {
+        userUrls.push(shortURL);
+      }
+    }
+  }
+  return userUrls;
+};
+
 
 // DATABASES
 
-// Setup url shortner keys
+// store user preferences
 const urlDatabase = {
-  'b2xVn2': "http://lighthouselabs.ca",
-  '9sm5xK': "http://google.com"
+  b6UTxQ: {
+    longURL: "https://www.tsn.ca",
+    userID: "aJ48lW",
+  },
+  i3BoGr: {
+    longURL: "https://www.google.ca",
+    userID: "aJ48lW",
+  },
+  i3BoG3: {
+    longURL: "https://www.google.ca",
+    userID: "user1",
+  },
 };
 
 //store user login registration information
@@ -65,19 +89,21 @@ app.use(cookieParser())
 
 // generate a random short url and redirect to it (create)
 app.post('/urls', (req, res) => {
+  const newLongUrl = req.body.longURL
+  const newUserId = req.cookies["user_id"]
+
   const templateVars = {
     user: users[req.cookies["user_id"]]
   };
 
-  if (!req.cookies["user_id"])
-  {
+  if (!req.cookies["user_id"]) {
     res.render('urls_notAllowedIfNotSignedIn', templateVars)
   }
-  else 
-  {
-  const shortIdForLongUrl = generateRandomString()
-  urlDatabase[shortIdForLongUrl] = req.body.longURL
-  res.redirect(`/urls/${shortIdForLongUrl}`);
+  else {
+    const id = generateRandomString()
+    urlDatabase[id] = { longURL: newLongUrl, userID: newUserId }
+    urlDatabase[id].longURL = req.body.longURL
+    res.redirect(`/urls/${id}`);
   };
 });
 
@@ -88,26 +114,24 @@ app.get('/urls.json', (req, res) => {
 
 //use the shortURL to redirect to the longURL (read one)
 app.get("/u/:id", (req, res) => {
-  const longURL = urlDatabase[req.params.id];
+  const longURL = urlDatabase[req.params.id].longURL;
   const templateVars = {
-    shortUrl: req.params.id, 
+    id: req.params.id,
     user: users[req.cookies["user_id"]]
   };
 
-  if (!longURL)
-  {
-    res.render('urls_shortUrlNotFound', templateVars)
-  } 
-  else 
-  {
+  if (!longURL) {
+    res.render('urls_shortUrlNotFound', templateVars);
+  }
+  else {
     res.redirect(longURL);
   }
 });
 
 // post rerouting edit button (update)
-app.post('/urls/:id', (req, res) =>  {
-  const shortIdForLongUrl = req.params.id
-  urlDatabase[shortIdForLongUrl] = req.body.longURL
+app.post('/urls/:id', (req, res) => {
+  const id = req.params.id
+  urlDatabase[id].longURL = req.body.longURL
   res.redirect('/urls');
 });
 
@@ -115,30 +139,41 @@ app.post('/urls/:id', (req, res) =>  {
 app.post('/register', (req, res) => {
   const emailForNewUser = req.body.email;
   const passwordNewForUser = req.body.password;
-  
+
   // if user attempts to register with an existing email/password respond with error
   for (let user in users) {
-    if (users[user].email === emailForNewUser && users[user].password === passwordNewForUser) 
-    {
-     return res.status(400).send('Sorry, Invalid');
+    if (users[user].email === emailForNewUser && users[user].password === passwordNewForUser) {
+      return res.status(400).send('Sorry, Invalid');
     }
-    if (emailForNewUser === "" || passwordNewForUser === "") 
-    {
+    if (emailForNewUser === "" || passwordNewForUser === "") {
       return res.status(400).send('Invalid Input');
     }
   };
   const idForNewUser = generateRandomString();
-  users[idForNewUser] = { id: idForNewUser, email: emailForNewUser, password: passwordNewForUser  };
+  users[idForNewUser] = { id: idForNewUser, email: emailForNewUser, password: passwordNewForUser };
   res.cookie('user_id', idForNewUser);
   res.redirect('/urls');
 });
 
 
 // post route for deleting short urls (delete)
-app.post('/urls/:id/delete', (req, res) =>  {
-  const shortURL = req.params.id 
-  delete urlDatabase[shortURL];
-  res.redirect('/urls');
+app.post('/urls/:id/delete', (req, res) => {
+  const shortUrlID = req.params.id
+
+  if (!req.cookies["user_id"]) {
+    return res.status(400).send("Sorry, please log in to use this feature");
+  };
+
+  const id = req.cookies["user_id"];
+  const urls = urlsForUser(id)
+
+  for (const shortURL of urls) {
+    if (shortURL == shortUrlID) {
+      delete urlDatabase[shortUrlID];
+      return res.redirect('/urls');
+    }
+  };
+  return res.status(400).send("Sorry, you do not own any URL")
 });
 
 
@@ -146,8 +181,7 @@ app.post('/urls/:id/delete', (req, res) =>  {
 
 // provide log in page and if user logs in redirect to url page
 app.get('/login', (req, res) => {
-  if (req.cookies["user_id"]) 
-  {
+  if (req.cookies["user_id"]) {
     return res.redirect('/urls');
   }
   res.render('urls_login');
@@ -160,11 +194,17 @@ app.get('/', (req, res) => {
 
 // route handler for object with shortened urls
 app.get('/urls', (req, res) => {
-  const templateVars = { 
+  const templateVars = {
     urls: urlDatabase,
     user: users[req.cookies["user_id"]]
-   };
-  res.render('urls_index', templateVars);
+  };
+
+  if (!users[req.cookies["user_id"]]) {
+    res.render('urls_notAllowedIfNotSignedIn', templateVars)
+  }
+  else {
+    res.render('urls_index', templateVars);
+  }
 });
 
 // present the form to the user and userID when user logs in
@@ -172,8 +212,7 @@ app.get('/urls/new', (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]]
   }
-  if (!req.cookies["user_id"]) 
-  {
+  if (!req.cookies["user_id"]) {
     return res.redirect('/login');
   }
   res.render('urls_new', templateVars);
@@ -182,18 +221,32 @@ app.get('/urls/new', (req, res) => {
 // url individual detail page
 app.get('/urls/:id', (req, res) => {
   const urlId = req.params.id;
-  const templateVars = { 
-    id: urlId,
-    longURL: urlDatabase[urlId],
-    user: users[req.cookies["user_id"]]
+  console.log(req.params);
+  // stop non-users from using short urls for access
+  if (!req.cookies["user_id"]) {
+    return res.status(400).send("Sorry, please log in to use this feature");
   };
-  res.render('urls_show', templateVars);
+
+  const id = req.cookies["user_id"];
+  const urls = urlsForUser(id)
+
+  for (const shortURL of urls) {
+    if (shortURL == urlId) {
+      const templateVars = {
+        id: urlId,
+        longURL: urlDatabase[shortURL].longURL,
+        user: users[req.cookies["user_id"]]
+      };
+      return res.render('urls_show', templateVars);
+    }
+  };
+
+  return res.status(400).send("Sorry, you do not own any URL")
 });
 
 // render the user registration page and if user logs in redirect to url page
 app.get('/register', (req, res) => {
-  if (req.cookies["user_id"]) 
-  {
+  if (req.cookies["user_id"]) {
     return res.redirect('/urls');
   }
   res.render('urls_registration');
@@ -207,19 +260,16 @@ app.post('/login', (req, res) => {
   const userEmail = req.body.email;
   const userPassword = req.body.password
   const user = getUserByEmail(userEmail);
-    if (!userEmail || !userPassword) 
-    {
-      return res.status(400).send('Fields cannot be empty')
-    }; 
+  if (!userEmail || !userPassword) {
+    return res.status(400).send('Fields cannot be empty')
+  };
   // verify if the user is an existing user by checking entered email and password
-    if (!user)
-    {
-     return res.status(403).send('Invalid Credentials');
-    }
-    if (userEmail === user.email && userPassword !== user.password)
-    {
-      return res.status(403).send('Invalid Entry');
-    }
+  if (!user) {
+    return res.status(403).send('Invalid Credentials');
+  }
+  if (userEmail === user.email && userPassword !== user.password) {
+    return res.status(403).send('Invalid Entry');
+  }
   res.cookie('user_id', user.id);
   return res.redirect('/urls');
 });
@@ -236,3 +286,9 @@ app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
 
+
+
+
+/** Things to fix 
+ * when you submit using the edit button, the old url saves as well
+*/
