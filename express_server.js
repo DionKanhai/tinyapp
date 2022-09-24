@@ -1,6 +1,7 @@
 // REQUIREMENTS
 const express = require('express');
 const cookieParser = require('cookie-parser')
+const bcrypt = require("bcryptjs");
 const app = express();
 const PORT = 8080;
 
@@ -163,11 +164,13 @@ app.post('/urls/:id/delete', (req, res) => {
   if (!req.cookies["user_id"]) {
     return res.status(400).send("Sorry, please log in to use this feature");
   };
-
   const id = req.cookies["user_id"];
+  //pass the id of the current user logged in 
   const urls = urlsForUser(id)
-
+  
+  // urls is the array with the shortURLs pushed from the function urlsForUser
   for (const shortURL of urls) {
+    // if shortURL in the array matches the shortURL entered by the current user 
     if (shortURL == shortUrlID) {
       delete urlDatabase[shortUrlID];
       return res.redirect('/urls');
