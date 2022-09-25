@@ -56,7 +56,7 @@ const urlDatabase = {
     userID: "aJ48lW",
   },
   i3BoG3: {
-    longURL: "https://www.google.ca",
+    longURL: "https://www.theweathernetwork.com",
     userID: "user1",
   },
 };
@@ -96,15 +96,16 @@ app.post('/urls', (req, res) => {
   const templateVars = {
     user: users[req.cookies["user_id"]]
   };
-
+  // if user does not exist
   if (!req.cookies["user_id"]) {
     res.render('urls_notAllowedIfNotSignedIn', templateVars)
   }
   else {
-    const id = generateRandomString()
-    urlDatabase[id] = { longURL: newLongUrl, userID: newUserId }
-    urlDatabase[id].longURL = req.body.longURL
-    res.redirect(`/urls/${id}`);
+    // generate random shortUrl
+    const shortUrl = generateRandomString()
+    urlDatabase[shortUrl] = { longURL: newLongUrl, userID: newUserId }
+    urlDatabase[shortUrl].longURL = req.body.longURL
+    res.redirect(`/urls/${shortUrl}`);
   };
 });
 
@@ -116,6 +117,7 @@ app.get('/urls.json', (req, res) => {
 //use the shortURL to redirect to the longURL (read one)
 app.get("/u/:id", (req, res) => {
   const longURL = urlDatabase[req.params.id].longURL;
+  
   const templateVars = {
     id: req.params.id,
     user: users[req.cookies["user_id"]]
@@ -124,9 +126,7 @@ app.get("/u/:id", (req, res) => {
   if (!longURL) {
     res.render('urls_shortUrlNotFound', templateVars);
   }
-  else {
     res.redirect(longURL);
-  }
 });
 
 // post rerouting edit button (update)
@@ -140,18 +140,21 @@ app.post('/urls/:id', (req, res) => {
 app.post('/register', (req, res) => {
   const emailForNewUser = req.body.email;
   const passwordNewForUser = req.body.password;
+  const hashPassword = bcrypt.hashSync(passwordNewForUser, 10);
 
   // if user attempts to register with an existing email/password respond with error
   for (let user in users) {
-    if (users[user].email === emailForNewUser && users[user].password === passwordNewForUser) {
+    if (users[user].email === emailForNewUser && users[user].password === hashPassword) {
       return res.status(400).send('Sorry, Invalid');
     }
     if (emailForNewUser === "" || passwordNewForUser === "") {
       return res.status(400).send('Invalid Input');
     }
   };
+
+  // create id for user and then append user info to users object
   const idForNewUser = generateRandomString();
-  users[idForNewUser] = { id: idForNewUser, email: emailForNewUser, password: passwordNewForUser };
+  users[idForNewUser] = { id: idForNewUser, email: emailForNewUser, password: hashPassword };
   res.cookie('user_id', idForNewUser);
   res.redirect('/urls');
 });
@@ -224,7 +227,6 @@ app.get('/urls/new', (req, res) => {
 // url individual detail page
 app.get('/urls/:id', (req, res) => {
   const urlId = req.params.id;
-  console.log(req.params);
   // stop non-users from using short urls for access
   if (!req.cookies["user_id"]) {
     return res.status(400).send("Sorry, please log in to use this feature");
@@ -249,9 +251,11 @@ app.get('/urls/:id', (req, res) => {
 
 // render the user registration page and if user logs in redirect to url page
 app.get('/register', (req, res) => {
-  if (req.cookies["user_id"]) {
+  if (req.cookies["user_id"]) 
+  {
     return res.redirect('/urls');
   }
+
   res.render('urls_registration');
 });
 
@@ -261,20 +265,33 @@ app.get('/register', (req, res) => {
 // post route for setting cookie of userID in and verification on server for client
 app.post('/login', (req, res) => {
   const userEmail = req.body.email;
-  const userPassword = req.body.password
+  const userPassword = req.body.password;
+  const hashedPassword = bcrypt.hashSync(userPassword, 10);
+  const comparePassword = bcrypt.compareSync(userPassword, hashedPassword);
   const user = getUserByEmail(userEmail);
-  if (!userEmail || !userPassword) {
-    return res.status(400).send('Fields cannot be empty')
+  // if user fails to enter password or em
+
+  if (!userEmail || !userPassword) 
+  {
+    return res.status(400).send('Fields cannot be empty');
   };
   // verify if the user is an existing user by checking entered email and password
-  if (!user) {
-    return res.status(403).send('Invalid Credentials');
+  if (!user)
+  {
+    return res.status(403).send('Please register for an account to login');
   }
-  if (userEmail === user.email && userPassword !== user.password) {
-    return res.status(403).send('Invalid Entry');
+  if (userEmail === user.email && userPassword !== user.password) 
+  {
+    return res.status(403).send('Email or Password incorrect');
   }
   res.cookie('user_id', user.id);
-  return res.redirect('/urls');
+  
+  //check if hashed password matches on sign in and if true log in to home page
+  if (comparePassword)
+  {
+  return res.redirect('/urls')
+  };
+  
 });
 
 // clear cookies and redirect back to home page
@@ -288,10 +305,3 @@ app.post('/logout', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
-
-
-
-
-/** Things to fix 
- * when you submit using the edit button, the old url saves as well
-*/
