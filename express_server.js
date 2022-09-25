@@ -3,7 +3,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const cookieSession = require('cookie-session');
 const bcrypt = require("bcryptjs");
-const generateRandomString = require('./helpers');
+const { generateRandomString, getUserByEmail } = require('./helpers');
 const app = express();
 const PORT = 8080;
 
@@ -36,18 +36,6 @@ const setCookie = function(cookieName, req, cookieValue) {
   req.session[cookieName] = cookieValue;
 }
 
-
-// function that is passed the user email and returns that user object if email is in users object
-const getUserByEmail = function (email) {
-  for (let user in users) {
-    if (email === users[user].email) {
-      return users[user];
-    }
-  }
-  return null;
-};
-
-
 // function that shows users who are logged in their websites only 
 const urlsForUser = function (id) {
   let userUrls = [];
@@ -61,7 +49,6 @@ const urlsForUser = function (id) {
   };
   return userUrls;
 };
-
 
 
 // DATABASES
@@ -280,9 +267,9 @@ app.post('/login', (req, res) => {
   const userPassword = req.body.password;
   const hashedPassword = bcrypt.hashSync(userPassword, 10);
   const comparePassword = bcrypt.compareSync(userPassword, hashedPassword);
-  const user = getUserByEmail(userEmail);
+  const user = getUserByEmail(userEmail, users);
+  
   // if user fails to enter password or em
-
   if (!userEmail || !userPassword)
   {
     return res.status(400).send('Fields cannot be empty');
