@@ -3,7 +3,13 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const cookieSession = require('cookie-session');
 const bcrypt = require("bcryptjs");
-const { generateRandomString, getUserByEmail } = require('./helpers');
+const { 
+  generateRandomString, 
+  getUserByEmail,       
+  getCookie,  
+  setCookie, 
+  urlsForUser
+} = require('./helpers');
 const app = express();
 const PORT = 8080;
 
@@ -22,33 +28,6 @@ app.use(cookieSession({
   keys: ["12345678910abcdedfg"],
   maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }));
-
-
-//HELPER FUNCTIONS
-
-
-// function to get the cookie
-const getCookie = function(cookieName, req) {
-  return req.session[cookieName];
-}
-//function to set a cookie
-const setCookie = function(cookieName, req, cookieValue) {
-  req.session[cookieName] = cookieValue;
-}
-
-// function that shows users who are logged in their websites only 
-const urlsForUser = function (id) {
-  let userUrls = [];
-
-  if (id) {
-    for (const shortURL in urlDatabase) {
-      if (urlDatabase[shortURL].userID === id) {
-        userUrls.push(shortURL);
-      };
-    };
-  };
-  return userUrls;
-};
 
 
 // DATABASES
@@ -102,7 +81,6 @@ app.post('/urls', (req, res) => {
     // generate random shortUrl
     const shortUrl = generateRandomString()
     urlDatabase[shortUrl] = { longURL: newLongUrl, userID: newUserId }
-    urlDatabase[shortUrl].longURL = req.body.longURL
     res.redirect(`/urls/${shortUrl}`);
   };
 });
@@ -129,9 +107,19 @@ app.get("/u/:id", (req, res) => {
 
 // post rerouting edit button (update)
 app.post('/urls/:id', (req, res) => {
-  const id = req.params.id
-  urlDatabase[id].longURL = req.body.longURL
-  res.redirect('/urls');
+  const shortUrlID = req.params.id
+  urlDatabase[shortUrlID].longURL = req.body.longURL
+  
+  const userId = getCookie("user_id", req);
+  //pass the id of the current user logged in 
+  const userSpecificObject = urlsForUser(userId, urlDatabase)
+  // urls is the object with the shortURLs pushed from the function urlsForUser
+  for (const shortURL in userSpecificObject) {
+    // if shortURL in the object does not match the shortURL entered by the current user 
+    if (!shortURL == shortUrlID) {
+      res.redirect('/urls');
+    }
+  };
 });
 
 // post route for updating registration form from user input (update)
@@ -145,14 +133,19 @@ app.post('/register', (req, res) => {
     if (users[user].email === emailForNewUser && users[user].password === hashPassword) {
       return res.status(400).send('Sorry, Invalid');
     }
-    if (emailForNewUser === "" || passwordNewForUser === "") {
+    if (!emailForNewUser || !passwordNewForUser) {
       return res.status(400).send('Invalid Input');
     }
   };
 
-  // create id for user and then append user info to users object
+  // create id for user and then append user info to users object, then set cookie
   const idForNewUser = generateRandomString();
-  users[idForNewUser] = { id: idForNewUser, email: emailForNewUser, password: hashPassword };
+  users[idForNewUser] = {
+    id: idForNewUser,
+    email: emailForNewUser,
+    password: hashPassword
+  };
+
   setCookie("user_id", req, idForNewUser);
   res.redirect('/urls');
 });
@@ -162,16 +155,17 @@ app.post('/register', (req, res) => {
 app.post('/urls/:id/delete', (req, res) => {
   const shortUrlID = req.params.id
 
-  if (!req.session.user_id) {
+  if (!getCookie("user_id", req)) {
     return res.status(400).send("Sorry, please log in to use this feature");
   };
-  const id = req.session.user_id;
+
+  const userId = getCookie("user_id", req);
   //pass the id of the current user logged in 
-  const urls = urlsForUser(id)
+  const userSpecificObject = urlsForUser(userId, urlDatabase)
   
-  // urls is the array with the shortURLs pushed from the function urlsForUser
-  for (const shortURL of urls) {
-    // if shortURL in the array matches the shortURL entered by the current user 
+  // urls is the object with the shortURLs pushed from the function urlsForUser
+  for (const shortURL in userSpecificObject) {
+    // if shortURL in the object matches the shortURL by the current user 
     if (shortURL == shortUrlID) {
       delete urlDatabase[shortUrlID];
       return res.redirect('/urls');
@@ -183,41 +177,40 @@ app.post('/urls/:id/delete', (req, res) => {
 
 // INDEX / RENDERING ROUTES (views)
 
+// set up handler on root path '/'
+app.get('/', (req, res) => {
+  res.render('urls_login');
+});
+
 // provide log in page and if user logs in redirect to url page
 app.get('/login', (req, res) => {
 
-  if (req.session.user_id) {
+  if (getCookie("user_id", req)) {
     return res.redirect('/urls');
   }
   res.render('urls_login');
 });
 
-// set up handler on root path '/'
-app.get('/', (req, res) => {
-  res.send('Hello!');
-});
-
 // route handler for object with shortened urls
 app.get('/urls', (req, res) => {
+ 
+  const userId = getCookie("user_id", req);
   const templateVars = {
-    urls: urlDatabase,
-    user: users[req.session.user_id]
+    urls: urlsForUser(userId, urlDatabase),
+    user: users[getCookie("user_id", req)]
   };
-
-  if (!users[req.session.user_id]) {
-    res.render('urls_notAllowedIfNotSignedIn', templateVars)
+  if (!userId) {
+    return res.render('urls_notAllowedIfNotSignedIn', templateVars)
   }
-  else {
-    res.render('urls_index', templateVars);
-  }
+    return res.render('urls_index', templateVars);
 });
 
 // present the form to the user and userID when user logs in
 app.get('/urls/new', (req, res) => {
   const templateVars = {
-    user: users[req.session.user_id]
+    user: users[getCookie("user_id", req)]
   }
-  if (!req.session.user_id) {
+  if (!getCookie("user_id", req)) {
     return res.redirect('/login');
   }
   res.render('urls_new', templateVars);
@@ -227,19 +220,20 @@ app.get('/urls/new', (req, res) => {
 app.get('/urls/:id', (req, res) => {
   const urlId = req.params.id;
   // stop non-users from using short urls for access
-  if (!req.session.user_id) {
+  if (!getCookie("user_id", req)) {
     return res.status(400).send("Sorry, please log in to use this feature");
   };
 
-  const id = req.session.user_id;
-
-  const urls = urlsForUser(id)
-  for (const shortURL of urls) {
-    if (shortURL == urlId) {
+  const userId = getCookie("user_id", req);
+  // current users info
+  const userSpecificObject = urlsForUser(userId, urlDatabase)
+  // loop through current users object
+  for (const shortURL in userSpecificObject) {
+    if (shortURL === urlId) {
       const templateVars = {
         id: urlId,
         longURL: urlDatabase[shortURL].longURL,
-        user: users[req.session.user_id]
+        user: users[getCookie("user_id", req)]
       };
       return res.render('urls_show', templateVars);
     }
@@ -250,11 +244,10 @@ app.get('/urls/:id', (req, res) => {
 
 // render the user registration page and if user logs in redirect to url page
 app.get('/register', (req, res) => {
-  if (req.session.user_id)
-  {
+
+  if (getCookie("user_id", req)) {
     return res.redirect('/urls');
   }
-
   res.render('urls_registration');
 });
 
@@ -270,25 +263,20 @@ app.post('/login', (req, res) => {
   const user = getUserByEmail(userEmail, users);
   
   // if user fails to enter password or em
-  if (!userEmail || !userPassword)
-  {
+  if (!userEmail || !userPassword) {
     return res.status(400).send('Fields cannot be empty');
   };
   // verify if the user is an existing user by checking entered email and password
-  if (!user)
-  {
+  if (!user) {
     return res.status(403).send('Please register for an account to login');
   }
-  if (userEmail === user.email && userPassword !== user.password)
-  {
+  if (userEmail === user.email && userPassword !== user.password) {
     return res.status(403).send('Email or Password incorrect');
   }
 
   setCookie("user_id", req, user.id);
-
   //check if hashed password matches on sign in and if true log in to home page
-  if (comparePassword)
-  {
+  if (comparePassword) {
   return res.redirect('/urls')
   };
 });
