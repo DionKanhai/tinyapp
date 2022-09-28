@@ -53,12 +53,12 @@ const users = {
   user1: {
     id: "user1",
     email: "animals123@example.com",
-    password: "animals",
+    password: "$2y$10$5nWA2..8j1x4Z1/lBJ0iZuEflOXtUjFUujwRDqLn7Xdl9SazgSMsq",
   },
   user2: {
     id: "user2",
     email: "sports@example.com",
-    password: "basketball",
+    password: "$2y$10$0oY8EczvIMTmqjdP04FHGuYXXvacHITXBnMeajVxNAVaiZTdtPUVW",
   },
 };
 
@@ -129,11 +129,12 @@ app.post('/register', (req, res) => {
   const hashPassword = bcrypt.hashSync(passwordNewForUser, 10);
 
   // if user attempts to register with an existing email/password respond with error
-  for (let user in users) {
-    if (users[user].email === emailForNewUser && users[user].password === hashPassword) {
-      return res.status(400).send('Sorry, Invalid');
+  for (const user in users) {
+    // console.log(users)
+    if (users[user].email === emailForNewUser) {
+      return res.status(400).send('Sorry, Invalid Entry');
     }
-    if (!emailForNewUser || !passwordNewForUser) {
+    if (!emailForNewUser || !hashPassword) {
       return res.status(400).send('Invalid Input');
     }
   };
@@ -258,11 +259,10 @@ app.get('/register', (req, res) => {
 app.post('/login', (req, res) => {
   const userEmail = req.body.email;
   const userPassword = req.body.password;
-  const hashedPassword = bcrypt.hashSync(userPassword, 10);
-  const comparePassword = bcrypt.compareSync(userPassword, hashedPassword);
   const user = getUserByEmail(userEmail, users);
-  
-  // if user fails to enter password or em
+  const comparePassword = bcrypt.compareSync(userPassword, user.password);
+
+  // if user fails to enter password or email
   if (!userEmail || !userPassword) {
     return res.status(400).send('Fields cannot be empty');
   };
@@ -270,15 +270,11 @@ app.post('/login', (req, res) => {
   if (!user) {
     return res.status(403).send('Please register for an account to login');
   }
-  if (userEmail === user.email && userPassword !== user.password) {
-    return res.status(403).send('Email or Password incorrect');
+  // if user email and hashed password match, allow entry
+  if (userEmail === user.email && comparePassword) {
+    setCookie("user_id", req, user.id);
   }
-
-  setCookie("user_id", req, user.id);
-  //check if hashed password matches on sign in and if true log in to home page
-  if (comparePassword) {
-  return res.redirect('/urls')
-  };
+  return res.redirect('/urls')  
 });
 
 // clear cookies and redirect back to home page
